@@ -1,113 +1,105 @@
-# Interactive Slash Commands & LibreChat Prompt Library
+# Slash Commands and Prompt Library
 
-LibreChatTmuxBridge provides a three-tiered command ecosystem engineered for touch-friendly mobile supervision, zero-latency keystroke delivery, and seamless LibreChat integration.
+This guide describes the built-in slash commands, the LibreChat prompt library integration, and the FastMCP prompt templates.
 
----
-
-## Architecture of Bridge Commands
+## Command Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Client["LibreChat UI (Mobile / Desktop)"]
-        UI_Input["User Input ('/' Autocomplete or Prompt Library)"]
-        Agent_Prompt["Agent Mode / Copilot Prompts"]
+    subgraph Client ["LibreChat Interface"]
+        UI_Input["User Input (Slash Commands)"]
+        Agent_Prompt["Agent Prompts (MCP Copilot)"]
     end
 
-    subgraph Bridge["LibreChatTmuxBridge (:8035)"]
-        Parser["Slash Command Interceptor (Zero Tokens)"]
-        Streamer["Terminal Differ & Quiescence Streamer"]
-        MCP["FastMCP 2.x Server (/mcp/sse)"]
+    subgraph Bridge ["LibreChatTmuxBridge Daemon (:8035)"]
+        Parser["Command Interceptor"]
+        Streamer["Terminal Differ and Streamer"]
+        MCP["FastMCP Server (/mcp/sse)"]
     end
 
-    subgraph Host["Host Infrastructure"]
-        Tmux["tmux Socket & Server"]
-        Agent["Antigravity 'agy' / OpenCode / CLI Process"]
+    subgraph Host ["Host System"]
+        Tmux["tmux Multiplexer"]
+        Agent["Interactive Processes (agy, opencode, bash)"]
     end
 
-    UI_Input -->|Direct /command| Parser
-    UI_Input -->|Shell Commands| Streamer
-    Agent_Prompt -->|Tool Execution & Prompts| MCP
+    UI_Input -->|"Direct slash commands"| Parser
+    UI_Input -->|"Shell commands"| Streamer
+    Agent_Prompt -->|"Tool invocations"| MCP
 
-    Parser -->|Immediate Keystrokes / Signals| Tmux
-    Streamer -->|Keystrokes & Quiescence Polling| Tmux
-    MCP -->|Tools & Prompts| Tmux
+    Parser -->|"Send keystrokes and signals"| Tmux
+    Streamer -->|"Read pane buffer"| Tmux
+    MCP -->|"Execute control tools"| Tmux
     Tmux --> Agent
 ```
 
----
+## Built-In Slash Commands
 
-## 1. Built-in In-Chat Slash Commands
+When communicating with any `tmux:*` model in LibreChat, messages starting with a forward slash (`/`) trigger built-in daemon commands. The bridge intercepts these commands locally and executes them immediately without consuming language model tokens.
 
-When chatting with any `tmux:*` model in LibreChat, messages starting with `/` are intercepted directly by the bridge before sending to any LLM. Execution is immediate, synchronous, and incurs **0 LLM token cost**.
+### Process Control and Approvals
 
-### Quick Approvals & Process Control
-
-| Slash Command | Aliases | Description | Underlying Keystroke |
+| Command | Aliases | Function | Sent Keystroke |
 | :--- | :--- | :--- | :--- |
-| `/approve` | `/y`, `/yes` | Confirm CLI prompt or diff | `y` + `Enter` |
-| `/reject` | `/n`, `/no` | Decline CLI prompt or diff | `n` + `Enter` |
-| `/cancel` | `/c`, `/sigint` | Interrupt long-running command | `Ctrl+C` (`C-c`) |
-| `/enter` | `/return` | Submit empty Enter key | `Enter` |
-| `/esc` | `/escape` | Cancel modal / exit vi mode | `Escape` |
-| `/eof` | | Send End-of-File | `Ctrl+D` (`C-d`) |
+| `/approve` | `/y`, `/yes` | Confirm interactive prompt or diff | `y` followed by `Enter` |
+| `/reject` | `/n`, `/no` | Decline interactive prompt or diff | `n` followed by `Enter` |
+| `/cancel` | `/c`, `/sigint` | Send interrupt signal | `Ctrl+C` (`C-c`) |
+| `/enter` | `/return` | Send Enter keystroke | `Enter` |
+| `/esc` | `/escape` | Exit mode or cancel dialog | `Escape` |
+| `/eof` | | Send End-of-File signal | `Ctrl+D` (`C-d`) |
 
-### Non-Intrusive Terminal Inspection
+### Terminal Inspection Commands
 
-| Slash Command | Usage | Description |
+| Command | Example | Function |
 | :--- | :--- | :--- |
-| `/tail [n]` | `/tail 30` | View the last *n* lines of the current session without typing |
-| `/peek <sess> [n]` | `/peek remote 20` | Non-intrusively inspect another tmux session from your current chat |
-| `/status` | `/status` | View bridge daemon health, active session counts, and poll intervals |
+| `/tail [n]` | `/tail 30` | Display the latest *n* lines from the current session pane |
+| `/peek <session> [n]` | `/peek remote 20` | Inspect terminal output from another session without switching models |
+| `/status` | `/status` | Show daemon health, active session counts, and poll intervals |
 
-### Session Management & Agent Spawning
+### Session Management Commands
 
-| Slash Command | Usage | Description | Launch Mode |
+| Command | Example | Function | Default Execution |
 | :--- | :--- | :--- | :--- |
-| `/new [name] [dir] [preset\|cmd]` | `/new my-shell /containers` | Spawn a new detached tmux session | **Bare interactive shell** (when no command given) |
-| `/new <name> [dir] agy` | `/new run1 /containers agy` | Spawn session with `agy` preset | `agy --dangerously-skip-permissions` |
-| `/new <name> [dir] opencode` | `/new run2 /containers opencode` | Spawn session with `opencode` preset | `opencode --dangerously-skip-permissions` |
-| `/agy [name] [dir] [args]` | `/agy work /containers` | Dedicated Antigravity Agent launcher | `agy --dangerously-skip-permissions [args]` |
-| `/opencode [name] [dir] [args]` | `/opencode dev /containers` | Dedicated OpenCode Agent launcher | `opencode --dangerously-skip-permissions [args]` |
-| `/kill <name>` | `/kill agent-run` | Terminate and clean up an active tmux session | N/A |
-| `/list` | `/list` | Show a markdown table of active host sessions, window counts, and attached flags | N/A |
-| `/up` | `/up` | Repeat previous shell history command (`Up` arrow + `Enter`) | Keystroke |
-| `/down` | `/down` | Send Down arrow key | Keystroke |
-| `/keys <combo> [sess]` | `/keys C-z infra` | Send arbitrary special key combinations | Keystroke |
-| `/clear` | `/clear` | Send `clear` to clean terminal scrollback buffer | Terminal |
-| `/help` | `/help` | Display interactive command cheatsheet | Built-in |
+| `/new [name] [dir] [preset\|cmd]` | `/new dev /containers` | Create a detached tmux session | Starts an interactive shell if no command is specified |
+| `/new <name> [dir] agy` | `/new run1 /containers agy` | Start a session with Antigravity | Runs `agy --dangerously-skip-permissions` |
+| `/new <name> [dir] opencode` | `/new run2 /containers opencode` | Start a session with OpenCode | Runs `opencode --dangerously-skip-permissions` |
+| `/agy [name] [dir] [args]` | `/agy work /containers` | Launch an Antigravity agent | Runs `agy --dangerously-skip-permissions [args]` |
+| `/opencode [name] [dir] [args]` | `/opencode dev /containers` | Launch an OpenCode agent | Runs `opencode --dangerously-skip-permissions [args]` |
+| `/kill <name>` | `/kill agent-run` | Terminate the specified tmux session | Terminate target session |
+| `/list` | `/list` | Show active sessions, window counts, and attach status | Return markdown table |
+| `/up` | `/up` | Send Up arrow key and Enter | Re-run last shell command |
+| `/down` | `/down` | Send Down arrow key | Navigate command history |
+| `/keys <combo> [session]` | `/keys C-z infra` | Send arbitrary key sequence | Send raw tmux keys |
+| `/clear` | `/clear` | Clear terminal scrollback buffer | Execute clear command |
+| `/help` | `/help` | Show command reference table | Return reference text |
 
----
+## LibreChat Prompt Library Integration
 
-## 2. Native LibreChat Prompt Library Integration
+LibreChat includes a Prompt Library feature accessible from the chat interface. You can seed the LibreChat database to enable autocomplete suggestions when typing `/` in the message input field.
 
-LibreChat includes a native **Prompt Library** accessible directly in the chat UI. By seeding LibreChat's MongoDB database, typing `/` in the message input automatically displays an autocomplete popup with descriptions and parameter placeholders.
+### Seed Database Prompts
 
-### Seeding LibreChat Prompt Library
-
-Run the automated seeder script:
+Execute the database seeding script from the repository root:
 
 ```bash
-# Seed all 15 interactive commands into LibreChat MongoDB
+# Insert the 15 interactive command templates into MongoDB
 python3 scripts/seed_librechat_prompts.py
 
-# Or remove seeded commands:
+# Remove previously seeded commands
 python3 scripts/seed_librechat_prompts.py --clean
 ```
 
-The script configures:
-- **`promptgroups`**: Command definitions (`approve`, `reject`, `cancel`, `tail`, `peek`, `list`, `new`, `agy`, `opencode`, `kill`, `keys`, `up`, `clear`, `status`, `help`).
-- **`prompts`**: Command templates with variable insertion (`/tail 25`, `/peek {{session}} 25`, `/agy {{session_name}} {{start_dir}}`, `/new {{session_name}} {{start_dir}}`).
-- **`aclentries`**: Configured with both User Owner (`permBits: 15`) and Global Public (`permBits: 1`) permissions so all authorized LibreChat users can invoke them.
+The script configures three database collections:
+- `promptgroups`: Defines command names and descriptions.
+- `prompts`: Specifies command templates and variable placeholders (for example, `/peek {{session}} 25`).
+- `aclentries`: Sets access control permissions for all authorized users.
 
----
+## FastMCP Prompts for Autonomous Supervision
 
-## 3. FastMCP Agent Prompts
+When using an external reasoning model in LibreChat, you can activate predefined MCP prompts to supervise background CLI agents:
 
-For multi-agent setups where an LLM in LibreChat acts as an autonomous supervisor over CLI agents:
-
-| MCP Prompt | Description | Arguments |
+| MCP Prompt | Purpose | Arguments |
 | :--- | :--- | :--- |
-| `tmux_launch_agent` | Launches an autonomous coding agent (`agy` or `opencode`) in a new session with permissions skipped | `agent_type`, `session_name`, `start_dir`, `task_goal` |
-| `tmux_supervise_agent` | Supervises a CLI agent, detects confirmation prompts, safely approves/rejects, and provides executive progress reports | `session_name`, `task_goal` |
-| `tmux_quick_approve` | Inspects pending confirmation in a target session and issues approval | `session_name` |
-| `tmux_status_summary` | Audits all host tmux sessions, captures active panes, and generates an infrastructure dashboard | *(none)* |
+| `tmux_launch_agent` | Launch an agent process (`agy` or `opencode`) with bypass permissions | `agent_type`, `session_name`, `start_dir`, `task_goal` |
+| `tmux_supervise_agent` | Monitor an agent session, detect confirmation prompts, and summarize progress | `session_name`, `task_goal` |
+| `tmux_quick_approve` | Inspect pending confirmation in a target session and send approval | `session_name` |
+| `tmux_status_summary` | Query all active tmux sessions and generate a status report | None |

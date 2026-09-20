@@ -1,21 +1,19 @@
-# Desktop SSH Parity (`fzf` Session Picker)
+# Desktop SSH Integration
 
-A primary design pillar of **LibreChatTmuxBridge** is **100% Desktop Parity**. 
+This guide explains how to attach to host tmux sessions from a desktop workstation over SSH.
 
-Because all commands and sessions run inside real host `tmux` processes:
-- Anything you create or execute from your phone in LibreChat is immediately available on your workstation.
-- When you sit down at your desk and open an SSH terminal, you can attach to the exact same agent TUI session with a single keystroke.
+## System Synchronization
 
----
+LibreChatTmuxBridge manages native host tmux sessions. Every session created through the mobile LibreChat interface exists directly on the host server.
 
-## 🖥️ Shell Configuration (`~/.bashrc`)
+When you connect to the host workstation over SSH, all mobile sessions are immediately available. You can attach to any session without loss of process state or terminal scrollback.
 
-Add the following helper function and login trigger to your workstation's `~/.bashrc`:
+## Shell Configuration with fzf
+
+Add the following shell function to your `~/.bashrc` file to enable an interactive session selector:
 
 ```bash
-# ==========================================
-# Tmux fzf Fast Session Attach
-# ==========================================
+# Tmux interactive session attach helper
 tm() {
   local session
   session=$(tmux list-sessions -F "#{session_name} (#{session_windows} win, #{?session_attached,attached,detached})" 2>/dev/null | \
@@ -31,11 +29,21 @@ tm() {
 }
 ```
 
----
+Reload the shell configuration:
 
-## ⚡ Interactive Workflow
+```bash
+source ~/.bashrc
+```
 
-When you SSH into the server:
+## Interactive Session Attachment
+
+Run the `tm` command in your terminal:
+
+```bash
+tm
+```
+
+The interactive menu displays active host sessions:
 
 ```text
 ENTER: Attach | CTRL-N: New | CTRL-D: Kill | ESC: Cancel
@@ -45,4 +53,8 @@ ENTER: Attach | CTRL-N: New | CTRL-D: Kill | ESC: Cancel
   infra            (1 win, attached)
 ```
 
-Selecting `agy-caddy` drops you right back into the active agent REPL started on your phone!
+1. Use arrow keys to navigate the list.
+2. Press **Enter** to attach to the selected session.
+3. Press **Ctrl+N** to create a new session.
+4. Press **Ctrl+D** to terminate the selected session.
+5. Press **Escape** to exit without attaching.

@@ -1,18 +1,18 @@
 # LibreChat Integration Guide
 
-Integrating **LibreChatTmuxBridge** with LibreChat gives you two powerful modes:
-1. **Mode 1: Direct Pseudo-LLM Terminal Driver** (Zero-token streaming via `/v1/chat/completions`)
-2. **Mode 2: FastMCP Agent Copilot** (Reasoning LLM with tools via `/mcp/sse`)
+This guide explains how to connect LibreChat to the LibreChatTmuxBridge daemon.
 
----
+LibreChat supports two integration methods:
+1. **Direct Terminal Driver:** Uses the OpenAI-compatible endpoint for zero-token terminal execution.
+2. **Model Context Protocol (MCP) Copilot:** Uses FastMCP tools for LLM reasoning and multi-session supervision.
 
-## ⚙️ Configuration in `librechat.yaml`
+## Configuration in librechat.yaml
 
-Edit your `librechat.yaml` file (e.g. `/containers/ai/librechat/librechat.yaml`):
+Open and edit your `librechat.yaml` file (for example, `/containers/ai/librechat/librechat.yaml`).
 
-### 1. Custom Endpoint (Mode 1)
+### Configure Custom Endpoint
 
-Add the bridge under `endpoints.custom`:
+Add the bridge definition under the `endpoints.custom` section:
 
 ```yaml
 endpoints:
@@ -31,9 +31,9 @@ endpoints:
         - temperature
 ```
 
-### 2. FastMCP Server Registration (Mode 2)
+### Configure FastMCP Server
 
-Add the bridge under `mcpSettings.allowedAddresses` and `mcpServers`:
+Add the bridge URL to `mcpSettings.allowedAddresses` and register the server under `mcpServers`:
 
 ```yaml
 mcpSettings:
@@ -47,21 +47,17 @@ mcpServers:
     url: http://10.0.0.10:8035/mcp/sse
 ```
 
----
+## Restart LibreChat
 
-## 🔄 Restarting LibreChat
-
-Once `librechat.yaml` is updated, restart your LibreChat container:
+Restart the LibreChat container to apply the configuration changes:
 
 ```bash
 docker compose restart librechat
 ```
 
----
+## Verify Interface Integration
 
-## 📱 Verifying in the UI
-
-1. Open LibreChat (e.g. `https://librechat.wileyriley.com` or `http://localhost:8451`).
-2. Tap the endpoint selector and choose **"Host Tmux"**.
-3. The model dropdown automatically populates with active sessions (e.g. `tmux:agy-work`, `tmux:infra`, `tmux:new`).
-4. Type `uptime` or `/list` to begin driving your terminal!
+1. Open the LibreChat web interface (for example, `http://localhost:8451` or `https://librechat.wileyriley.com`).
+2. Select the endpoint menu and choose **Host Tmux**.
+3. Verify that the model selector lists available sessions (for example, `tmux:agy-work`, `tmux:infra`, `tmux:new`).
+4. Submit the command `/list` to verify bidirectional communication.
