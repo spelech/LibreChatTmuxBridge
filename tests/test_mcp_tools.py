@@ -15,6 +15,10 @@ from librechat_tmux_bridge.mcp.server import (
     kill_tmux_session_tool,
     list_tmux_sessions_tool,
     send_tmux_keys_tool,
+    tmux_launch_agent_prompt,
+    tmux_quick_approve_prompt,
+    tmux_status_summary_prompt,
+    tmux_supervise_agent_prompt,
 )
 
 
@@ -85,10 +89,24 @@ async def test_mcp_create_and_kill_session():
     with patch(
         "librechat_tmux_bridge.mcp.server.driver.new_session",
         new=AsyncMock(return_value=TmuxSession(name="agent-tui")),
-    ):
-        res = await create_tmux_session_tool("agent-tui", start_dir="/containers", command="agy")
-        assert "Session 'agent-tui' created successfully" in res
-        assert "Directory: /containers" in res
+    ) as mock_new:
+        # Bare shell (no command)
+        res_bare = await create_tmux_session_tool("agent-bare", start_dir="/containers")
+        assert "Session 'agent-tui' created successfully" in res_bare
+        assert "Bare interactive shell" in res_bare
+        mock_new.assert_called_with("agent-bare", start_dir="/containers", command=None)
+
+        # agy preset
+        res_agy = await create_tmux_session_tool("agent-agy", preset="agy")
+        assert "agy --dangerously-skip-permissions" in res_agy
+
+        # opencode preset
+        res_oc = await create_tmux_session_tool("agent-oc", preset="opencode")
+        assert "opencode --dangerously-skip-permissions" in res_oc
+
+        # Custom command
+        res_custom = await create_tmux_session_tool("agent-custom", command="python3 test.py")
+        assert "Command: python3 test.py" in res_custom
 
     with patch(
         "librechat_tmux_bridge.mcp.server.driver.new_session",
@@ -136,3 +154,31 @@ async def test_mcp_execute_tmux_command():
     ):
         res_err = await execute_tmux_command_tool("bad-cmd")
         assert "Error executing tmux command" in res_err
+
+
+def test_mcp_prompts():
+    # 1. Supervise prompt
+    prompt_supervise = tmux_supervise_agent_prompt("agy-work", task_goal="Refactor auth module")
+    assert "agy-work" in prompt_supervise
+    assert "Refactor auth module" in prompt_supervise
+    assert "capture_tmux_pane" in prompt_supervise
+    assert "send_tmux_keys" in prompt_supervise
+
+    # 2. Quick approve prompt
+    prompt_approve = tmux_quick_approve_prompt("infra")
+    assert "infra" in prompt_approve
+    assert "keys='y'" in prompt_approve
+
+    # 3. Status summary prompt
+    prompt_status = tmux_status_summary_prompt()
+    assert "list_tmux_sessions" in prompt_status
+    assert "capture_tmux_pane" in prompt_status
+
+    # 4. Launch agent prompt
+    prompt_launch_agy = tmux_launch_agent_prompt("agy", "agy-job", "/containers", "Run tests")
+    assert "agy-job" in prompt_launch_agy
+    assert "preset='agy'" in prompt_launch_agy
+    assert "Run tests" in prompt_launch_agy
+
+    prompt_launch_oc = tmux_launch_agent_prompt("opencode")
+    assert "preset='opencode'" in prompt_launch_oc
