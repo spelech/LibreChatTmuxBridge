@@ -1,38 +1,38 @@
 # Getting Started
 
-**LibreChatTmuxBridge** runs as a lightweight daemon on your host server or dev workstation.
+This guide explains how to install and start the LibreChatTmuxBridge daemon on a Linux host.
 
----
+## Prerequisites
 
-## 📦 Prerequisites
+Verify that the host environment satisfies these requirements:
 
-1. **Linux / Unix host** with `tmux` installed (`which tmux`).
-2. **Python 3.12+** with `uv` package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`).
-3. **LibreChat** instance (running in Docker or bare metal).
+1. **Linux host:** Install `tmux` version 3.2 or later. Run `tmux -V` to confirm the installation.
+2. **Python environment:** Install Python 3.12 or later and the `uv` package manager.
+3. **LibreChat instance:** Ensure a functional LibreChat instance is accessible on your network.
 
----
+## Installation
 
-## 🛠️ Installation
+1. Clone the repository:
+   ```bash
+   git clone git@github.com:spelech/LibreChatTmuxBridge.git
+   cd LibreChatTmuxBridge
+   ```
 
-Clone the repository and install dependencies using `uv`:
+2. Synchronize project dependencies:
+   ```bash
+   uv sync
+   ```
 
-```bash
-git clone git@github.com:spelech/LibreChatTmuxBridge.git
-cd LibreChatTmuxBridge
-uv sync
-```
+## Daemon Execution
 
----
-
-## 🚀 Running the Daemon
-
-You can start the daemon using the provided Typer CLI:
+Start the daemon with the command line interface:
 
 ```bash
 uv run librechat-tmux-bridge start --host 0.0.0.0 --port 8035
 ```
 
-Output:
+The daemon initializes and displays startup information:
+
 ```text
 Discovered tmux binary at: /usr/bin/tmux
 LibreChatTmuxBridge v0.1.0 listening on http://0.0.0.0:8035
@@ -40,39 +40,35 @@ OpenAI endpoint available at: /v1/models and /v1/chat/completions
 Model Context Protocol (MCP) server available at: /mcp/sse
 ```
 
----
+## Command Line Operations
 
-## 🧪 Testing the CLI
+You can manage sessions directly from the terminal.
 
-Check active sessions on your server:
+1. List all active host sessions:
+   ```bash
+   uv run librechat-tmux-bridge list
+   ```
 
-```bash
-uv run librechat-tmux-bridge list
-```
+2. Capture terminal content from a session:
+   ```bash
+   uv run librechat-tmux-bridge capture <session_name> --lines 30
+   ```
 
-Capture the latest 30 lines of scrollback:
+3. Send keystrokes or commands to a session:
+   ```bash
+   uv run librechat-tmux-bridge send <session_name> "docker ps"
+   ```
 
-```bash
-uv run librechat-tmux-bridge capture <session_name> --lines 30
-```
+## Health Verification
 
-Inject a command into a session:
-
-```bash
-uv run librechat-tmux-bridge send <session_name> "docker ps"
-```
-
----
-
-## 🩺 Verifying Health
-
-Query the health probe via curl:
+Send an HTTP request to the health endpoint to confirm daemon status:
 
 ```bash
 curl -s http://127.0.0.1:8035/health | jq
 ```
 
-Response:
+Expected response format:
+
 ```json
 {
   "status": "healthy",

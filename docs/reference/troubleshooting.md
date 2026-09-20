@@ -1,42 +1,38 @@
-# Troubleshooting & FAQ
+# Troubleshooting and Diagnostics
 
-Common diagnostic scenarios and resolutions for **LibreChatTmuxBridge**.
+This reference table outlines common operational faults, diagnostic causes, and corrective actions.
 
----
+## Diagnostic Matrix
 
-## 🔍 Common Issues
+| Condition | Probable Cause | Corrective Action |
+| :--- | :--- | :--- |
+| **`tmux: command not found`** | The `tmux` executable is not present in the system PATH. | Install tmux with your package manager: `sudo apt-get install -y tmux`. |
+| **Connection Refused (`ECONNREFUSED`)** | Daemon is bound to loopback `127.0.0.1` while LibreChat runs inside Docker. | Set `TMUX_BRIDGE_HOST=0.0.0.0` and configure `baseURL: http://10.0.0.10:8035/v1` in `librechat.yaml`. |
+| **Session already exists** | A tmux session with the requested identifier is already active. | Choose a unique session identifier or terminate the existing session with `/kill <name>`. |
+| **Stream does not terminate** | The interactive program in tmux is waiting for user confirmation or pager exit. | Submit the required key with `/approve`, `/reject`, or `/keys q`. The daemon terminates inactive streams after 30 seconds. |
+| **Authentication failure (`401 Unauthorized`)** | The Bearer token in the request does not match `TMUX_BRIDGE_API_KEY`. | Verify that `apiKey: sk-tmux` in `librechat.yaml` matches the server configuration. |
+| **Model list is empty in LibreChat** | LibreChat cannot reach `/v1/models` or daemon is not running. | Verify daemon health with `curl -s http://10.0.0.10:8035/health`. Restart the LibreChat container after network changes. |
 
-### 1. `tmux: command not found`
-- **Symptom:** Daemon logs show `⚠️ Tmux binary 'tmux' was not found in PATH!`.
-- **Cause:** `tmux` is not installed on the system.
-- **Resolution:** Install tmux using your package manager:
-  ```bash
-  sudo apt-get update && sudo apt-get install -y tmux
-  ```
+## Diagnostic Logging and Taps
 
----
+The daemon provides diagnostic introspection for active sessions and streaming events:
 
-### 2. LibreChat cannot connect to bridge (`ECONNREFUSED` or 502)
-- **Symptom:** LibreChat displays connection failed or model dropdown is empty.
-- **Cause:**
-  1. The bridge is bound to `127.0.0.1` instead of `0.0.0.0` or `10.0.0.10`.
-  2. If LibreChat is running in Docker, `localhost` refers to the container, not the host.
-- **Resolution:**
-  - Use `http://10.0.0.10:8035/v1` as the `baseURL` in `librechat.yaml`.
-  - Ensure `TMUX_BRIDGE_HOST=0.0.0.0`.
+1. **Verify daemon health:**
+   ```bash
+   curl -s http://127.0.0.1:8035/health | jq
+   ```
 
----
+2. **Inspect recent diagnostic events:**
+   ```bash
+   curl -s http://127.0.0.1:8035/taps | jq
+   ```
 
-### 3. "Session already exists" error
-- **Symptom:** `/new session_name` returns `Session already exists`.
-- **Cause:** A tmux session with that name is already running on the host.
-- **Resolution:** Use a different name or terminate the old session with `/kill session_name`.
+3. **Check systemd service status:**
+   ```bash
+   systemctl --user status librechat-tmux-bridge.service
+   ```
 
----
-
-### 4. Terminal output freezes or hangs
-- **Symptom:** Command is sent but stream does not end.
-- **Cause:** The foreground process in tmux is waiting for user input (e.g. `[y/N]` prompt or pager like `less`).
-- **Resolution:**
-  - Send response key using `/keys y` or `/keys q` to exit pagers.
-  - The bridge automatically times out after `stream_timeout_sec` (default 30s) to prevent infinite loops.
+4. **Follow live daemon logs:**
+   ```bash
+   journalctl --user -u librechat-tmux-bridge.service -f
+   ```

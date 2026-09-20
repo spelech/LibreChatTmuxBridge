@@ -1,14 +1,27 @@
 # OpenAI Compatibility API Reference
 
-LibreChatTmuxBridge implements standard OpenAI REST endpoints to seamlessly plug into LibreChat's Custom Endpoints feature.
+LibreChatTmuxBridge provides REST endpoints compatible with the OpenAI API specification. These endpoints allow LibreChat to connect to host terminal sessions without custom client plugins.
 
----
+## Endpoint Overview
 
-## 📡 `GET /v1/models`
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/v1/models` | Returns available host tmux sessions as language models |
+| `POST` | `/v1/chat/completions` | Injects terminal input and streams terminal responses |
 
-Returns the list of active host tmux sessions formatted as OpenAI models.
+## GET /v1/models
 
-### Response
+Queries active tmux sessions and returns them in the OpenAI model list format.
+
+### Request
+
+```http
+GET /v1/models HTTP/1.1
+Host: 10.0.0.10:8035
+Authorization: Bearer sk-tmux
+```
+
+### Response Example
 
 ```json
 {
@@ -36,13 +49,21 @@ Returns the list of active host tmux sessions formatted as OpenAI models.
 }
 ```
 
----
+The model `tmux:new` is always included to allow creating new sessions from the client interface.
 
-## 📡 `POST /v1/chat/completions`
+## POST /v1/chat/completions
 
-Executes terminal turns against the target tmux session.
+Transmits user messages to the specified tmux session and captures resulting terminal changes.
 
-### Request Body
+### Request Body Parameters
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `model` | string | Yes | Target session identifier (for example, `tmux:infra` or `tmux:agy-work`) |
+| `messages` | array | Yes | Array of chat messages. The final user message contains the command or keystroke |
+| `stream` | boolean | No | Enables Server-Sent Events streaming. Default is `false` |
+
+### Request Example
 
 ```json
 {
@@ -57,9 +78,9 @@ Executes terminal turns against the target tmux session.
 }
 ```
 
-### Streaming SSE Output
+### Streaming Response Format
 
-When `stream: true`, the endpoint emits standard `text/event-stream` chunks:
+When `stream` is `true`, the server sets the content type to `text/event-stream` and transmits incremental chunks:
 
 ```text
 data: {"id":"chatcmpl-a1b2c3d4","object":"chat.completion.chunk","created":1700000300,"model":"tmux:infra","choices":[{"index":0,"delta":{"content":"NAMES             STATUS\n"},"finish_reason":null}]}
@@ -71,9 +92,9 @@ data: {"id":"chatcmpl-a1b2c3d4","object":"chat.completion.chunk","created":17000
 data: [DONE]
 ```
 
-### Non-Streaming Output
+### Non-Streaming Response Format
 
-When `stream: false`, the endpoint waits for output stabilization and returns a full response:
+When `stream` is `false`, the server gathers settled output and returns a single JSON object:
 
 ```json
 {

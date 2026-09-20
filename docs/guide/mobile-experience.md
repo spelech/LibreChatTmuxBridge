@@ -1,47 +1,54 @@
-# Mobile TUI Experience
+# Mobile Terminal Experience
 
-Using a traditional mobile SSH client (Termius, Blink Shell) on smartphones often leads to frustration:
-- Virtual keyboards cover half of the terminal output.
-- Navigation keys (`Ctrl`, `Alt`, `Esc`, `Tab`, arrows) require cumbersome secondary toolbars.
-- Session disconnects occur whenever you switch apps or lock your screen.
+This guide explains how to use LibreChat on mobile devices to monitor and operate persistent tmux sessions.
 
-**LibreChatTmuxBridge** turns your smartphone into an intuitive, touch-friendly control console.
+## Mobile Limitations of Traditional SSH
 
----
+Traditional mobile SSH applications have operational disadvantages:
+- Virtual keyboards obscure terminal output.
+- Control keys require multi-touch navigation bars.
+- Mobile operating systems terminate background TCP connections when the screen locks.
 
-## 📱 Mobile Slash Commands
+LibreChatTmuxBridge eliminates these issues. Terminal sessions persist independently on the host server. The mobile interface uses standard HTTP and Server-Sent Events to stream terminal updates.
 
-LibreChatTmuxBridge provides built-in slash commands that let you control tmux without typing complex terminal commands:
+## Mobile Operational Workflow
 
-| Command | Arguments | Description |
-| :--- | :--- | :--- |
-| **`/list`** | None | List active tmux sessions with window counts and attached status |
-| **`/new`** | `<name> [dir] [cmd]` | Spawn a new persistent tmux session on the host |
-| **`/kill`** | `<name>` | Terminate a tmux session |
-| **`/keys`** | `<key>` | Send special modifier keys (e.g. `C-c`, `Escape`, `y`, `n`) |
-| **`/help`** | None | Display the interactive command menu |
+You can manage sessions on mobile devices through built-in slash commands:
 
----
+1. **List Active Sessions:**
+   Send `/list` to view running sessions, window counts, and connection states.
 
-## 🤖 Persistent AI Agent TUIs (`agy`, `opencode`)
+2. **Create New Sessions:**
+   Send `/new <session_name> [start_directory] [command]` to start a detached session.
 
-When running AI coding assistants like **Antigravity (`agy`)** or **OpenCode**, you don't want to run them as cold, one-off CLI processes. You want them active in a warm TUI REPL:
+3. **Terminate Sessions:**
+   Send `/kill <session_name>` to stop an active session.
 
-1. On your phone in LibreChat, send:
+4. **Send Control Keystrokes:**
+   Send `/keys <key_combination>` to transmit special keys such as `C-c` (Interrupt) or `Escape`.
+
+## Operating Interactive Agent Sessions
+
+You can run interactive coding agents such as Antigravity (`agy`) or OpenCode in persistent sessions:
+
+1. Create an agent session:
    ```text
-   /new agy-caddy /containers/webservices "agy"
+   /agy caddy-work /containers/webservices
    ```
-2. Switch model to `tmux:agy-caddy`.
-3. Send natural instructions:
+
+2. Select the new session from the LibreChat model menu:
    ```text
-   Review recent changes to Caddyfile and run validation.
+   tmux:caddy-work
    ```
-4. As `agy` runs tools, edits files, and reasons, the output streams directly into the chat bubble formatted cleanly.
-5. If `agy` prompts for approval:
+
+3. Submit instructions to the agent:
    ```text
-   Proceed with Caddy reload? [y/N]
+   Check the Caddyfile configuration and validate syntax.
    ```
-   Simply tap the send box and enter:
+
+4. The bridge streams the terminal output into the chat message bubble.
+
+5. When the agent prompts for confirmation, send approval:
    ```text
-   /keys y
+   /approve
    ```

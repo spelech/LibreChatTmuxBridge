@@ -86,7 +86,7 @@ sequenceDiagram
     autonumber
     actor User as User on Mobile (LibreChat)
     participant LC as LibreChat Agent (Gemini/Claude)
-    participant MCP as nickgnd/tmux-mcp
+    participant MCP as FastMCP Server (:8035/mcp)
     participant TM as Host tmux
 
     User->>LC: "Are any of my background agent sessions waiting for approval?"
