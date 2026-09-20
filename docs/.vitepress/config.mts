@@ -21,6 +21,7 @@ export default withMermaid(
             items: [
               { text: 'Getting Started', link: '/guide/getting-started' },
               { text: 'LibreChat Integration', link: '/guide/librechat-setup' },
+              { text: 'Slash Commands & Prompts', link: '/guide/slash-commands' },
               { text: 'Mobile TUI Experience', link: '/guide/mobile-experience' },
               { text: 'Desktop SSH Parity', link: '/guide/desktop-ssh' }
             ]

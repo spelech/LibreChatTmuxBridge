@@ -63,17 +63,156 @@ class TerminalStreamer:
         args = parts[1:]
         return cmd, args
 
-    async def handle_slash_command(self, cmd: str, args: list[str]) -> str:
+    async def handle_slash_command(self, cmd: str, args: list[str], session_name: str = "") -> str:
         """Execute built-in bridge slash commands."""
         if cmd == "help":
             return (
                 "### 📟 LibreChat Tmux Bridge Commands\n\n"
+                "**Interactive Approvals:**\n"
+                "- `/y` or `/approve` - Confirm prompt (sends `y` + Enter)\n"
+                "- `/n` or `/reject` - Reject prompt (sends `n` + Enter)\n"
+                "- `/c` or `/cancel` - Interrupt running process (sends `Ctrl+C`)\n"
+                "- `/enter` - Send bare `Enter` key\n"
+                "- `/esc` - Send `Escape` key\n"
+                "- `/eof` - Send `Ctrl+D` (EOF)\n\n"
+                "**Non-Intrusive Terminal Inspection:**\n"
+                "- `/tail [lines]` - View latest output without sending any keystrokes (default 25)\n"
+                "- `/peek <session> [lines]` - Inspect another session without leaving chat\n"
+                "- `/status` - Display daemon health and active session count\n\n"
+                "**Session Management & Navigation:**\n"
+                "- `/list` - List all active host tmux sessions\n"
                 "- `/new <name> [dir] [cmd]` - Create a new detached tmux session\n"
                 "- `/kill <name>` - Terminate a tmux session\n"
-                "- `/list` - List active tmux sessions\n"
-                "- `/keys <keys>` - Send special keys (e.g. `C-c`, `C-d`, `Escape`, `Up`, `Down`)\n"
-                "- `/clear` - Clear scrollback on target session\n"
+                "- `/up` - Repeat previous shell command (sends Up arrow + Enter)\n"
+                "- `/down` - Send Down arrow\n"
+                "- `/keys <keys>` - Send arbitrary key sequence (e.g. `C-z`, `Tab`)\n"
+                "- `/clear` - Send `clear` command to terminal\n"
                 "- `/help` - Show this help menu\n"
+            )
+
+        if cmd in ("y", "yes", "approve"):
+            target = args[0] if args else session_name
+            if not target:
+                return "❌ *No active session specified for approval.*"
+            try:
+                await self.driver.send_keys(target, "y", enter=True)
+                return f"✅ **Approved** in `{target}` (sent `y` + Enter)."
+            except Exception as ex:
+                return f"❌ Failed to send approval to `{target}`: {ex}"
+
+        if cmd in ("n", "no", "reject"):
+            target = args[0] if args else session_name
+            if not target:
+                return "❌ *No active session specified.*"
+            try:
+                await self.driver.send_keys(target, "n", enter=True)
+                return f"🛑 **Rejected** in `{target}` (sent `n` + Enter)."
+            except Exception as ex:
+                return f"❌ Failed to send rejection to `{target}`: {ex}"
+
+        if cmd in ("c", "cancel", "sigint"):
+            target = args[0] if args else session_name
+            if not target:
+                return "❌ *No active session specified.*"
+            try:
+                await self.driver.send_keys(target, "C-c", enter=False)
+                return f"⚠️ Sent **SIGINT** (`Ctrl+C`) to interrupt process in `{target}`."
+            except Exception as ex:
+                return f"❌ Failed to send SIGINT to `{target}`: {ex}"
+
+        if cmd in ("enter", "return"):
+            target = args[0] if args else session_name
+            try:
+                await self.driver.send_keys(target, "Enter", enter=False)
+                return f"↵ Sent **Enter** to `{target}`."
+            except Exception as ex:
+                return f"❌ Failed to send Enter to `{target}`: {ex}"
+
+        if cmd in ("esc", "escape"):
+            target = args[0] if args else session_name
+            try:
+                await self.driver.send_keys(target, "Escape", enter=False)
+                return f"⎋ Sent **Escape** to `{target}`."
+            except Exception as ex:
+                return f"❌ Failed to send Escape to `{target}`: {ex}"
+
+        if cmd == "eof":
+            target = args[0] if args else session_name
+            try:
+                await self.driver.send_keys(target, "C-d", enter=False)
+                return f"⏏ Sent **EOF** (`Ctrl+D`) to `{target}`."
+            except Exception as ex:
+                return f"❌ Failed to send EOF to `{target}`: {ex}"
+
+        if cmd == "up":
+            target = args[0] if args else session_name
+            try:
+                await self.driver.send_keys(target, "Up", enter=True)
+                return f"⬆️ Repeated previous command in `{target}` (Up + Enter)."
+            except Exception as ex:
+                return f"❌ Failed to send Up arrow to `{target}`: {ex}"
+
+        if cmd == "down":
+            target = args[0] if args else session_name
+            try:
+                await self.driver.send_keys(target, "Down", enter=False)
+                return f"⬇️ Sent Down arrow to `{target}`."
+            except Exception as ex:
+                return f"❌ Failed to send Down arrow to `{target}`: {ex}"
+
+        if cmd == "clear":
+            target = args[0] if args else session_name
+            try:
+                await self.driver.send_keys(target, "clear", enter=True)
+                return f"🧹 Cleared terminal buffer in `{target}`."
+            except Exception as ex:
+                return f"❌ Failed to clear `{target}`: {ex}"
+
+        if cmd == "tail":
+            target = session_name
+            line_count = 25
+            if args:
+                try:
+                    line_count = int(args[0])
+                except ValueError:
+                    target = args[0]
+                    if len(args) > 1:
+                        try:
+                            line_count = int(args[1])
+                        except ValueError:
+                            pass
+            try:
+                output = await self.driver.capture_pane(target, lines=line_count)
+                cleaned = clean_terminal_output(output)
+                return f"### 📜 Last {line_count} lines of `{target}`\n\n```bash\n{cleaned}\n```"
+            except Exception as ex:
+                return f"❌ Failed to capture tail of `{target}`: {ex}"
+
+        if cmd == "peek":
+            if not args:
+                return "❌ *Usage: `/peek <session_name> [lines]`*"
+            target = args[0]
+            line_count = 25
+            if len(args) > 1:
+                try:
+                    line_count = int(args[1])
+                except ValueError:
+                    pass
+            try:
+                output = await self.driver.capture_pane(target, lines=line_count)
+                cleaned = clean_terminal_output(output)
+                return f"### 👀 Peek at `{target}` (last {line_count} lines)\n\n```bash\n{cleaned}\n```"
+            except Exception as ex:
+                return f"❌ Failed to peek at session `{target}`: {ex}"
+
+        if cmd == "status":
+            sessions = await self.driver.list_sessions()
+            return (
+                f"### ⚡ LibreChatTmuxBridge Status\n\n"
+                f"- **Active Sessions:** {len(sessions)}\n"
+                f"- **Poll Interval:** `{self.config.poll_interval_sec}s`\n"
+                f"- **Quiescence Timeout:** `{self.config.quiescence_timeout_sec}s`\n"
+                f"- **Bridge Port:** `{self.config.port}`\n"
             )
 
         if cmd == "list":
@@ -94,35 +233,44 @@ class TerminalStreamer:
         if cmd == "new":
             if not args:
                 return "❌ *Usage: `/new <session_name> [start_dir] [command]`*"
-            session_name = args[0]
+            session_name_arg = args[0]
             start_dir = args[1] if len(args) > 1 else None
             command = " ".join(args[2:]) if len(args) > 2 else None
             try:
-                await self.driver.new_session(session_name, start_dir=start_dir, command=command)
-                msg = f"✅ Session `{session_name}` created successfully."
+                await self.driver.new_session(
+                    session_name_arg, start_dir=start_dir, command=command
+                )
+                msg = f"✅ Session `{session_name_arg}` created successfully."
                 if start_dir:
                     msg += f" Directory: `{start_dir}`."
                 if command:
                     msg += f" Command: `{command}`."
                 return msg
             except Exception as ex:
-                return f"❌ Failed to create session `{session_name}`: {ex}"
+                return f"❌ Failed to create session `{session_name_arg}`: {ex}"
 
         if cmd == "kill":
             if not args:
                 return "❌ *Usage: `/kill <session_name>`*"
-            session_name = args[0]
+            session_name_arg = args[0]
             try:
-                await self.driver.kill_session(session_name)
-                return f"✅ Session `{session_name}` killed."
+                await self.driver.kill_session(session_name_arg)
+                return f"✅ Session `{session_name_arg}` killed."
             except Exception as ex:
-                return f"❌ Failed to kill session `{session_name}`: {ex}"
+                return f"❌ Failed to kill session `{session_name_arg}`: {ex}"
 
         if cmd == "keys":
             if not args:
-                return "❌ *Usage: `/keys <key_combination>` (e.g. `C-c`, `Escape`, `Enter`)*"
-            # Note: /keys will be handled in session context
-            return f"Special keys command received: `{' '.join(args)}`"
+                return "❌ *Usage: `/keys <key_combination> [session_name]` (e.g. `C-c`, `Escape`, `Enter`)*"
+            key_combo = args[0]
+            target = args[1] if len(args) > 1 else session_name
+            if not target:
+                return "❌ *No active session specified.*"
+            try:
+                await self.driver.send_keys(target, key_combo, enter=False)
+                return f"Sent key `{key_combo}` to session `{target}`."
+            except Exception as ex:
+                return f"❌ Failed to send key `{key_combo}` to `{target}`: {ex}"
 
         return f"❓ Unknown slash command `/{cmd}`. Type `/help` for available commands."
 
@@ -169,15 +317,7 @@ class TerminalStreamer:
         parsed = self.parse_slash_command(user_message)
         if parsed:
             cmd, args = parsed
-            if cmd == "keys" and args:
-                key_combo = args[0]
-                try:
-                    await self.driver.send_keys(session_name, key_combo, enter=False)
-                    response_text = f"Sent key `{key_combo}` to session `{session_name}`."
-                except Exception as ex:
-                    response_text = f"❌ Failed to send key `{key_combo}`: {ex}"
-            else:
-                response_text = await self.handle_slash_command(cmd, args)
+            response_text = await self.handle_slash_command(cmd, args, session_name=session_name)
 
             # Emit single chunk then DONE
             chunk = ChatCompletionChunk(

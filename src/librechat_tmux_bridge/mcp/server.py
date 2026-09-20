@@ -165,3 +165,50 @@ async def execute_tmux_command_tool(command_args: str) -> str:
         )
     except Exception as ex:
         return f"Error executing tmux command '{command_args}': {ex}"
+
+
+@mcp_server.prompt(
+    name="tmux_supervise_agent",
+    description="Supervise an autonomous AI coding agent (e.g. Antigravity 'agy', OpenCode) running in a tmux session",
+)
+def tmux_supervise_agent_prompt(session_name: str, task_goal: str = "") -> str:
+    """Generate prompt instructions for supervising a CLI agent."""
+    goal_clause = f" The stated goal is: '{task_goal}'." if task_goal else ""
+    return (
+        f"You are supervising an autonomous AI coding agent running in tmux session '{session_name}'.{goal_clause}\n\n"
+        "Follow these monitoring and supervisory guidelines:\n"
+        f"1. Call `capture_tmux_pane` with `session_name='{session_name}'` and `lines=50` to inspect recent output.\n"
+        "2. Analyze whether the agent is actively executing, waiting for user confirmation (e.g. 'y/n', tool confirmation, diff approval), or finished.\n"
+        "3. If a confirmation prompt is pending and the action aligns with safety and the task goal, send approval using `send_tmux_keys(session_name, 'y', enter=True)`.\n"
+        "4. If an unexpected error or dangerous action is detected, send cancellation using `send_tmux_keys(session_name, 'C-c', enter=False)`.\n"
+        "5. Summarize the agent's current activity, status, and your supervisory recommendations clearly."
+    )
+
+
+@mcp_server.prompt(
+    name="tmux_quick_approve",
+    description="Inspect pending prompt in a tmux session and approve it",
+)
+def tmux_quick_approve_prompt(session_name: str) -> str:
+    """Generate prompt instructions for quick one-touch approval."""
+    return (
+        f"Please inspect the pending prompt in tmux session '{session_name}'.\n"
+        f"1. First call `capture_tmux_pane` for session '{session_name}' with lines=20 to see what confirmation is requested.\n"
+        f"2. Confirm what command or action is being approved.\n"
+        f"3. Call `send_tmux_keys(session_name='{session_name}', keys='y', enter=True)` to confirm.\n"
+        "4. Capture the pane once more to verify the confirmation was accepted and report progress."
+    )
+
+
+@mcp_server.prompt(
+    name="tmux_status_summary",
+    description="Audit and summarize the state of all host tmux terminal sessions",
+)
+def tmux_status_summary_prompt() -> str:
+    """Generate prompt instructions for inspecting host tmux infrastructure."""
+    return (
+        "Please audit and summarize the status of all tmux terminal sessions on the host server:\n"
+        "1. Call `list_tmux_sessions` to retrieve all active sessions.\n"
+        "2. For any sessions currently attached or running autonomous agents, call `capture_tmux_pane` with `lines=15`.\n"
+        "3. Present a clean markdown dashboard showing session names, active windows, attachment state, and brief status summaries."
+    )

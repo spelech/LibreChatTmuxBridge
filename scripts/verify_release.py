@@ -5,9 +5,9 @@ Validates version synchronization across manifests, markdown link integrity, and
 """
 
 import argparse
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 
 
 def extract_pyproject_version(root_dir: Path) -> str | None:
@@ -65,13 +65,21 @@ def check_markdown_links(root_dir: Path) -> bool:
     has_errors = False
     for md_file in root_dir.glob("**/*.md"):
         # Ignore virtualenv, node_modules, cache dirs
-        if any(part.startswith(".") or part in ["node_modules", "bin", "obj", ".venv", "dist"] for part in md_file.parts):
+        if any(
+            part.startswith(".") or part in ["node_modules", "bin", "obj", ".venv", "dist"]
+            for part in md_file.parts
+        ):
             continue
         content = md_file.read_text(encoding="utf-8", errors="ignore")
         # Find markdown links: [text](path)
-        links = re.findall(r'\[([^\]]+)\]\(([^)]+)\)', content)
+        links = re.findall(r"\[([^\]]+)\]\(([^)]+)\)", content)
         for text, link in links:
-            if link.startswith("http://") or link.startswith("https://") or link.startswith("#") or link.startswith("mailto:"):
+            if (
+                link.startswith("http://")
+                or link.startswith("https://")
+                or link.startswith("#")
+                or link.startswith("mailto:")
+            ):
                 continue
             # Strip anchors
             target_path = link.split("#")[0]
@@ -101,7 +109,7 @@ def main():
     parser = argparse.ArgumentParser(description="LibreChatTmuxBridge Release Verification")
     parser.add_argument("--skip-tests", action="store_true", help="Skip test suite execution")
     parser.add_argument("--ci", action="store_true", help="CI execution mode")
-    args = parser.parse_args()
+    parser.parse_args()
 
     root_dir = Path(__file__).resolve().parent.parent
 

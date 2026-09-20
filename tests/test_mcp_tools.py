@@ -15,6 +15,9 @@ from librechat_tmux_bridge.mcp.server import (
     kill_tmux_session_tool,
     list_tmux_sessions_tool,
     send_tmux_keys_tool,
+    tmux_quick_approve_prompt,
+    tmux_status_summary_prompt,
+    tmux_supervise_agent_prompt,
 )
 
 
@@ -136,3 +139,22 @@ async def test_mcp_execute_tmux_command():
     ):
         res_err = await execute_tmux_command_tool("bad-cmd")
         assert "Error executing tmux command" in res_err
+
+
+def test_mcp_prompts():
+    # 1. Supervise prompt
+    prompt_supervise = tmux_supervise_agent_prompt("agy-work", task_goal="Refactor auth module")
+    assert "agy-work" in prompt_supervise
+    assert "Refactor auth module" in prompt_supervise
+    assert "capture_tmux_pane" in prompt_supervise
+    assert "send_tmux_keys" in prompt_supervise
+
+    # 2. Quick approve prompt
+    prompt_approve = tmux_quick_approve_prompt("infra")
+    assert "infra" in prompt_approve
+    assert "keys='y'" in prompt_approve
+
+    # 3. Status summary prompt
+    prompt_status = tmux_status_summary_prompt()
+    assert "list_tmux_sessions" in prompt_status
+    assert "capture_tmux_pane" in prompt_status
