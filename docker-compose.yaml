@@ -1,0 +1,23 @@
+services:
+  librechat-tmux-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: librechat-tmux-bridge
+    restart: unless-stopped
+    ports:
+      - "8035:8035"
+    environment:
+      - TMUX_BRIDGE_HOST=0.0.0.0
+      - TMUX_BRIDGE_PORT=8035
+      - TMUX_BRIDGE_API_KEY=sk-tmux
+    volumes:
+      # Mount host tmux socket directory to interact with host sessions
+      - /tmp/tmux-1000:/tmp/tmux-1000
+    networks:
+      - net_services
+
+networks:
+  net_services:
+    name: net_services
+    external: true

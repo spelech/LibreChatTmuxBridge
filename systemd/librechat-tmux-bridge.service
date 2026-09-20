@@ -1,0 +1,17 @@
+[Unit]
+Description=LibreChatTmuxBridge Daemon
+After=network.target
+
+[Service]
+Type=simple
+User=steve
+WorkingDirectory=/containers/dev/LibreChatTmuxBridge
+ExecStart=/home/steve/.local/bin/uv run librechat-tmux-bridge start --host 0.0.0.0 --port 8035
+Restart=always
+RestartSec=5s
+Environment=PYTHONUNBUFFERED=1
+Environment=TMUX_BRIDGE_HOST=0.0.0.0
+Environment=TMUX_BRIDGE_PORT=8035
+
+[Install]
+WantedBy=multi-user.target

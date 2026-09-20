@@ -1,0 +1,136 @@
+name: CI Quality Gates
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================
+  # Gate 1: Release & Link Integrity Gate
+  # ==========================================
+  release-verification:
+    name: Gate 1 - Release & Link Integrity (Python 3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Version Sync & Markdown Link Gate
+        run: python3 scripts/verify_release.py --ci
+
+  # ==========================================
+  # Gate 2: Parallel Builds & Tests
+  # ==========================================
+  backend-tests:
+    name: Gate 2A - Python Lint & Tests (>=80% Cov)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run Ruff Linter
+        run: uv run ruff check src tests
+
+      - name: Run Pytest Suite with Coverage
+        run: uv run pytest
+
+  docs-build:
+    name: Gate 2B - VitePress Documentation Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Build VitePress Documentation
+        run: npm run docs:build
+
+  # ==========================================
+  # Gate 3: Fullstack Smoke Gate
+  # ==========================================
+  smoke:
+    name: Gate 3 - Live Fullstack Smoke Gate
+    runs-on: ubuntu-latest
+    needs: [backend-tests, docs-build, release-verification]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Launch Background Daemon & Probe Health
+        run: |
+          tmux new-session -d -s ci-smoke "bash"
+          uv run librechat-tmux-bridge start --host 127.0.0.1 --port 8035 &
+          DAEMON_PID=$!
+          echo "Daemon spawned with PID $DAEMON_PID"
+
+          # Probe loop
+          for i in {1..30}; do
+            if curl -s http://127.0.0.1:8035/health | grep '"status":"healthy"' > /dev/null; then
+              echo "✅ Health check passed!"
+              break
+            fi
+            sleep 0.5
+          done
+
+          # Test OpenAI Models Discovery
+          echo "Testing /v1/models..."
+          MODELS=$(curl -s http://127.0.0.1:8035/v1/models)
+          echo "Models output: $MODELS"
+          echo "$MODELS" | grep 'tmux:ci-smoke'
+
+          # Test Non-streaming completion
+          echo "Testing /v1/chat/completions..."
+          RESP=$(curl -s -X POST http://127.0.0.1:8035/v1/chat/completions \
+            -H "Content-Type: application/json" \
+            -d '{"model":"tmux:ci-smoke","messages":[{"role":"user","content":"echo SMOKE_PASSED"}],"stream":false}')
+          echo "Completions output: $RESP"
+          echo "$RESP" | grep 'SMOKE_PASSED'
+
+          # Clean teardown
+          kill $DAEMON_PID
+          tmux kill-session -t ci-smoke
+          echo "✅ Smoke test completed successfully."
