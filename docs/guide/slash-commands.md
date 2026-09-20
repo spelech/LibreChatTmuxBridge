@@ -59,18 +59,22 @@ When chatting with any `tmux:*` model in LibreChat, messages starting with `/` a
 | `/peek <sess> [n]` | `/peek remote 20` | Non-intrusively inspect another tmux session from your current chat |
 | `/status` | `/status` | View bridge daemon health, active session counts, and poll intervals |
 
-### Session & Terminal Management
+### Session Management & Agent Spawning
 
-| Slash Command | Usage | Description |
-| :--- | :--- | :--- |
-| `/list` | `/list` | Show a markdown table of active host sessions, window counts, and attached flags |
-| `/new <name> [dir] [cmd]` | `/new agent-run /containers agy` | Spawn a new detached tmux session on the host |
-| `/kill <name>` | `/kill agent-run` | Terminate and clean up an active tmux session |
-| `/up` | `/up` | Repeat previous shell history command (`Up` arrow + `Enter`) |
-| `/down` | `/down` | Send Down arrow key |
-| `/keys <combo> [sess]` | `/keys C-z infra` | Send arbitrary special key combinations |
-| `/clear` | `/clear` | Send `clear` to clean terminal scrollback buffer |
-| `/help` | `/help` | Display interactive command cheatsheet |
+| Slash Command | Usage | Description | Launch Mode |
+| :--- | :--- | :--- | :--- |
+| `/new [name] [dir] [preset\|cmd]` | `/new my-shell /containers` | Spawn a new detached tmux session | **Bare interactive shell** (when no command given) |
+| `/new <name> [dir] agy` | `/new run1 /containers agy` | Spawn session with `agy` preset | `agy --dangerously-skip-permissions` |
+| `/new <name> [dir] opencode` | `/new run2 /containers opencode` | Spawn session with `opencode` preset | `opencode --dangerously-skip-permissions` |
+| `/agy [name] [dir] [args]` | `/agy work /containers` | Dedicated Antigravity Agent launcher | `agy --dangerously-skip-permissions [args]` |
+| `/opencode [name] [dir] [args]` | `/opencode dev /containers` | Dedicated OpenCode Agent launcher | `opencode --dangerously-skip-permissions [args]` |
+| `/kill <name>` | `/kill agent-run` | Terminate and clean up an active tmux session | N/A |
+| `/list` | `/list` | Show a markdown table of active host sessions, window counts, and attached flags | N/A |
+| `/up` | `/up` | Repeat previous shell history command (`Up` arrow + `Enter`) | Keystroke |
+| `/down` | `/down` | Send Down arrow key | Keystroke |
+| `/keys <combo> [sess]` | `/keys C-z infra` | Send arbitrary special key combinations | Keystroke |
+| `/clear` | `/clear` | Send `clear` to clean terminal scrollback buffer | Terminal |
+| `/help` | `/help` | Display interactive command cheatsheet | Built-in |
 
 ---
 
@@ -83,7 +87,7 @@ LibreChat includes a native **Prompt Library** accessible directly in the chat U
 Run the automated seeder script:
 
 ```bash
-# Seed all 13 interactive commands into LibreChat MongoDB
+# Seed all 15 interactive commands into LibreChat MongoDB
 python3 scripts/seed_librechat_prompts.py
 
 # Or remove seeded commands:
@@ -91,8 +95,8 @@ python3 scripts/seed_librechat_prompts.py --clean
 ```
 
 The script configures:
-- **`promptgroups`**: Command definitions (`approve`, `reject`, `cancel`, `tail`, `peek`, `list`, `new`, `kill`, `keys`, `up`, `clear`, `status`, `help`).
-- **`prompts`**: Command templates with variable insertion (`/tail 25`, `/peek {{session}} 25`, `/keys {{key}}`).
+- **`promptgroups`**: Command definitions (`approve`, `reject`, `cancel`, `tail`, `peek`, `list`, `new`, `agy`, `opencode`, `kill`, `keys`, `up`, `clear`, `status`, `help`).
+- **`prompts`**: Command templates with variable insertion (`/tail 25`, `/peek {{session}} 25`, `/agy {{session_name}} {{start_dir}}`, `/new {{session_name}} {{start_dir}}`).
 - **`aclentries`**: Configured with both User Owner (`permBits: 15`) and Global Public (`permBits: 1`) permissions so all authorized LibreChat users can invoke them.
 
 ---
@@ -103,6 +107,7 @@ For multi-agent setups where an LLM in LibreChat acts as an autonomous superviso
 
 | MCP Prompt | Description | Arguments |
 | :--- | :--- | :--- |
+| `tmux_launch_agent` | Launches an autonomous coding agent (`agy` or `opencode`) in a new session with permissions skipped | `agent_type`, `session_name`, `start_dir`, `task_goal` |
 | `tmux_supervise_agent` | Supervises a CLI agent, detects confirmation prompts, safely approves/rejects, and provides executive progress reports | `session_name`, `task_goal` |
 | `tmux_quick_approve` | Inspects pending confirmation in a target session and issues approval | `session_name` |
 | `tmux_status_summary` | Audits all host tmux sessions, captures active panes, and generates an infrastructure dashboard | *(none)* |

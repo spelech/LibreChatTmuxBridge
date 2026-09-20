@@ -101,24 +101,36 @@ async def create_tmux_session_tool(
     session_name: str,
     start_dir: str | None = None,
     command: str | None = None,
+    preset: str | None = None,
 ) -> str:
     """Spawn a new detached tmux session on the host.
 
     Args:
         session_name: Unique name for the new tmux session.
         start_dir: Optional working directory for the session (defaults to current dir).
-        command: Optional shell command or process to execute on spawn (e.g. 'agy', 'opencode').
+        command: Optional shell command or process to execute on spawn. Leave empty/None for a bare shell.
+        preset: Optional agent launcher preset: 'agy' (launches agy --dangerously-skip-permissions) or 'opencode' (launches opencode --dangerously-skip-permissions).
 
     Returns:
         Status message confirming session initialization.
     """
+    effective_cmd = command
+    if preset == "agy" or command in ("agy", "--agy"):
+        effective_cmd = "agy --dangerously-skip-permissions"
+    elif preset == "opencode" or command in ("opencode", "--opencode"):
+        effective_cmd = "opencode --dangerously-skip-permissions"
+    elif command in ("none", "shell", "bash", "sh"):
+        effective_cmd = None
+
     try:
-        session = await driver.new_session(session_name, start_dir=start_dir, command=command)
+        session = await driver.new_session(session_name, start_dir=start_dir, command=effective_cmd)
         msg = f"Session '{session.name}' created successfully."
         if start_dir:
             msg += f" Directory: {start_dir}."
-        if command:
-            msg += f" Command: {command}."
+        if effective_cmd:
+            msg += f" Command: {effective_cmd}."
+        else:
+            msg += " Mode: Bare interactive shell (no command)."
         return msg
     except Exception as ex:
         return f"Error creating session '{session_name}': {ex}"
@@ -211,4 +223,30 @@ def tmux_status_summary_prompt() -> str:
         "1. Call `list_tmux_sessions` to retrieve all active sessions.\n"
         "2. For any sessions currently attached or running autonomous agents, call `capture_tmux_pane` with `lines=15`.\n"
         "3. Present a clean markdown dashboard showing session names, active windows, attachment state, and brief status summaries."
+    )
+
+
+@mcp_server.prompt(
+    name="tmux_launch_agent",
+    description="Spawn an autonomous coding agent (agy or opencode) with permissions skipped",
+)
+def tmux_launch_agent_prompt(
+    agent_type: str = "agy",
+    session_name: str = "",
+    start_dir: str = "/containers",
+    task_goal: str = "",
+) -> str:
+    """Generate prompt instructions for launching an autonomous agent in tmux."""
+    sess = session_name or f"{agent_type}-task"
+    goal_line = (
+        f"3. Send the initial goal '{task_goal}' to the session using `send_tmux_keys(session_name='{sess}', keys='{task_goal}', enter=True)`.\n"
+        if task_goal
+        else ""
+    )
+    return (
+        f"Launch an autonomous {agent_type} agent in a new tmux session:\n"
+        f"1. Call `create_tmux_session(session_name='{sess}', start_dir='{start_dir}', preset='{agent_type}')`.\n"
+        f"2. Wait 2 seconds, then call `capture_tmux_pane(session_name='{sess}', lines=20)` to verify the TUI initialized.\n"
+        f"{goal_line}"
+        f"4. Provide the user with the session name `{sess}` so they can attach or monitor via `/peek {sess}`."
     )

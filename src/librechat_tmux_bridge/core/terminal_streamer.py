@@ -79,13 +79,15 @@ class TerminalStreamer:
                 "- `/tail [lines]` - View latest output without sending any keystrokes (default 25)\n"
                 "- `/peek <session> [lines]` - Inspect another session without leaving chat\n"
                 "- `/status` - Display daemon health and active session count\n\n"
-                "**Session Management & Navigation:**\n"
-                "- `/list` - List all active host tmux sessions\n"
-                "- `/new <name> [dir] [cmd]` - Create a new detached tmux session\n"
+                "**Session Management & Agent Spawning:**\n"
+                "- `/new [name] [dir] [cmd|preset]` - Create session (bare shell, or preset `agy`/`opencode`)\n"
+                "- `/agy [name] [dir] [args]` - Launch Antigravity Agent (`agy --dangerously-skip-permissions`)\n"
+                "- `/opencode [name] [dir] [args]` - Launch OpenCode Agent (`opencode --dangerously-skip-permissions`)\n"
                 "- `/kill <name>` - Terminate a tmux session\n"
+                "- `/list` - List all active host tmux sessions\n"
                 "- `/up` - Repeat previous shell command (sends Up arrow + Enter)\n"
                 "- `/down` - Send Down arrow\n"
-                "- `/keys <keys>` - Send arbitrary key sequence (e.g. `C-z`, `Tab`)\n"
+                "- `/keys <keys> [sess]` - Send arbitrary key sequence (e.g. `C-z`, `Tab`)\n"
                 "- `/clear` - Send `clear` command to terminal\n"
                 "- `/help` - Show this help menu\n"
             )
@@ -230,12 +232,20 @@ class TerminalStreamer:
                 lines.append(f"| `{s.name}` | {s.windows} | {att} | {win} |")
             return "\n".join(lines)
 
-        if cmd == "new":
-            if not args:
-                return "❌ *Usage: `/new <session_name> [start_dir] [command]`*"
-            session_name_arg = args[0]
+        if cmd in ("new", "spawn"):
+            session_name_arg = args[0] if args else f"session-{int(time.time()) % 10000}"
             start_dir = args[1] if len(args) > 1 else None
-            command = " ".join(args[2:]) if len(args) > 2 else None
+            raw_command = " ".join(args[2:]) if len(args) > 2 else None
+
+            # Check for preset shortcuts
+            command = raw_command
+            if raw_command in ("agy", "--agy"):
+                command = "agy --dangerously-skip-permissions"
+            elif raw_command in ("opencode", "--opencode"):
+                command = "opencode --dangerously-skip-permissions"
+            elif raw_command in ("none", "shell", "bash", "sh"):
+                command = None
+
             try:
                 await self.driver.new_session(
                     session_name_arg, start_dir=start_dir, command=command
@@ -245,9 +255,45 @@ class TerminalStreamer:
                     msg += f" Directory: `{start_dir}`."
                 if command:
                     msg += f" Command: `{command}`."
+                else:
+                    msg += " Mode: Bare interactive shell (no command)."
                 return msg
             except Exception as ex:
                 return f"❌ Failed to create session `{session_name_arg}`: {ex}"
+
+        if cmd == "agy":
+            session_name_arg = args[0] if args else f"agy-{int(time.time()) % 10000}"
+            start_dir = args[1] if len(args) > 1 else None
+            extra_args = f" {' '.join(args[2:])}" if len(args) > 2 else ""
+            command = f"agy --dangerously-skip-permissions{extra_args}"
+            try:
+                await self.driver.new_session(
+                    session_name_arg, start_dir=start_dir, command=command
+                )
+                msg = f"🚀 Antigravity Agent session `{session_name_arg}` spawned successfully."
+                if start_dir:
+                    msg += f" Directory: `{start_dir}`."
+                msg += f" Command: `{command}`."
+                return msg
+            except Exception as ex:
+                return f"❌ Failed to spawn agy session `{session_name_arg}`: {ex}"
+
+        if cmd == "opencode":
+            session_name_arg = args[0] if args else f"opencode-{int(time.time()) % 10000}"
+            start_dir = args[1] if len(args) > 1 else None
+            extra_args = f" {' '.join(args[2:])}" if len(args) > 2 else ""
+            command = f"opencode --dangerously-skip-permissions{extra_args}"
+            try:
+                await self.driver.new_session(
+                    session_name_arg, start_dir=start_dir, command=command
+                )
+                msg = f"🤖 OpenCode session `{session_name_arg}` spawned successfully."
+                if start_dir:
+                    msg += f" Directory: `{start_dir}`."
+                msg += f" Command: `{command}`."
+                return msg
+            except Exception as ex:
+                return f"❌ Failed to spawn opencode session `{session_name_arg}`: {ex}"
 
         if cmd == "kill":
             if not args:

@@ -57,9 +57,21 @@ TMUX_PROMPTS = [
     },
     {
         "command": "new",
-        "name": "New Tmux Session",
-        "oneliner": "Spawn a new detached tmux session on host",
-        "prompt": "/new {{session_name}}",
+        "name": "New Session (Bare Shell)",
+        "oneliner": "Spawn a bare interactive shell session (no command)",
+        "prompt": "/new {{session_name}} {{start_dir}}",
+    },
+    {
+        "command": "agy",
+        "name": "Launch Antigravity Agent",
+        "oneliner": "Launch Antigravity CLI with --dangerously-skip-permissions",
+        "prompt": "/agy {{session_name}} {{start_dir}}",
+    },
+    {
+        "command": "opencode",
+        "name": "Launch OpenCode Agent",
+        "oneliner": "Launch OpenCode CLI with --dangerously-skip-permissions",
+        "prompt": "/opencode {{session_name}} {{start_dir}}",
     },
     {
         "command": "kill",

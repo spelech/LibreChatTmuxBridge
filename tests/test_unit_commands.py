@@ -158,18 +158,69 @@ async def test_slash_command_execution(mock_driver: MockTmuxDriver, test_config)
     res_peek_err = await streamer.handle_slash_command("peek", ["missing-session"])
     assert "Failed to peek" in res_peek_err
 
-    # 14. /new
-    res_new_fail = await streamer.handle_slash_command("new", [])
-    assert "Usage: `/new" in res_new_fail
+    # 14. /new (bare shell, presets, custom command)
+    res_new_default = await streamer.handle_slash_command("new", [])
+    assert "created successfully" in res_new_default
+    assert "Bare interactive shell" in res_new_default
 
-    res_new_ok = await streamer.handle_slash_command("new", ["dev-test", "/tmp", "python"])
-    assert "created successfully" in res_new_ok
+    res_new_bare = await streamer.handle_slash_command("new", ["dev-bare", "/tmp"])
+    assert "created successfully" in res_new_bare
+    assert "Bare interactive shell" in res_new_bare
+    assert await mock_driver.has_session("dev-bare")
+
+    res_new_preset_agy = await streamer.handle_slash_command(
+        "new", ["dev-agy", "/containers", "agy"]
+    )
+    assert "agy --dangerously-skip-permissions" in res_new_preset_agy
+    assert await mock_driver.has_session("dev-agy")
+
+    res_new_preset_oc = await streamer.handle_slash_command(
+        "new", ["dev-oc", "/containers", "opencode"]
+    )
+    assert "opencode --dangerously-skip-permissions" in res_new_preset_oc
+    assert await mock_driver.has_session("dev-oc")
+
+    res_new_preset_none = await streamer.handle_slash_command("new", ["dev-none", "/tmp", "none"])
+    assert "Bare interactive shell" in res_new_preset_none
+
+    res_new_custom = await streamer.handle_slash_command("new", ["dev-test", "/tmp", "python"])
+    assert "created successfully" in res_new_custom
     assert await mock_driver.has_session("dev-test")
 
     res_new_dup = await streamer.handle_slash_command("new", ["dev-test"])
     assert "Failed to create" in res_new_dup
 
-    # 15. /kill
+    # 15. /agy command
+    res_agy_default = await streamer.handle_slash_command("agy", [])
+    assert "Antigravity Agent" in res_agy_default
+    assert "--dangerously-skip-permissions" in res_agy_default
+
+    res_agy_named = await streamer.handle_slash_command(
+        "agy", ["agy-feature", "/containers", "--mode", "plan"]
+    )
+    assert "agy-feature" in res_agy_named
+    assert "--dangerously-skip-permissions --mode plan" in res_agy_named
+    assert await mock_driver.has_session("agy-feature")
+
+    res_agy_dup = await streamer.handle_slash_command("agy", ["agy-feature"])
+    assert "Failed to spawn agy" in res_agy_dup
+
+    # 16. /opencode command
+    res_oc_default = await streamer.handle_slash_command("opencode", [])
+    assert "OpenCode" in res_oc_default
+    assert "--dangerously-skip-permissions" in res_oc_default
+
+    res_oc_named = await streamer.handle_slash_command(
+        "opencode", ["oc-feature", "/containers", "--auto"]
+    )
+    assert "oc-feature" in res_oc_named
+    assert "--dangerously-skip-permissions --auto" in res_oc_named
+    assert await mock_driver.has_session("oc-feature")
+
+    res_oc_dup = await streamer.handle_slash_command("opencode", ["oc-feature"])
+    assert "Failed to spawn opencode" in res_oc_dup
+
+    # 17. /kill
     res_kill_fail = await streamer.handle_slash_command("kill", [])
     assert "Usage: `/kill" in res_kill_fail
 
