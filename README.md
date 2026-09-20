@@ -4,7 +4,7 @@
 [![Coverage](https://img.shields.io/badge/Coverage-94%25-brightgreen.svg)](#test-coverage-and-simulation)
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/Docs-VitePress-646cff.svg)](https://preview.wileyriley.com/librechat-tmux-bridge/)
+[![Docs](https://img.shields.io/badge/Docs-GitHub%20Pages-646cff.svg)](https://spelech.github.io/LibreChatTmuxBridge/)
 
 Universal bidirectional bridge between LibreChat and host tmux terminal multiplexers. The bridge provides zero-token terminal streaming and FastMCP agent orchestration for persistent command line sessions and AI agent interfaces.
 
@@ -144,7 +144,7 @@ uv run pytest
 ## Technical Documentation
 
 Interactive documentation is hosted on the Agent Preview Hub:
-- **Documentation Portal:** [https://preview.wileyriley.com/librechat-tmux-bridge/](https://preview.wileyriley.com/librechat-tmux-bridge/)
+- **Documentation Portal:** [https://spelech.github.io/LibreChatTmuxBridge/](https://spelech.github.io/LibreChatTmuxBridge/)
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — Architectural specifications and pipeline design
 - [`REQUIREMENTS.md`](REQUIREMENTS.md) — Traceability matrix and operational constraints
 - [`CHANGELOG.md`](CHANGELOG.md) — Version history and release notes
