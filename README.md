@@ -88,6 +88,8 @@ endpoints:
       apiKey: "sk-tmux"
       baseURL: "http://10.0.0.10:8035/v1"
       models:
+        default:
+          - tmux:new
         fetch: true
       titleConvo: true
       modelDisplayLabel: "Host Tmux"
