@@ -5,7 +5,7 @@ Pytest configuration, fixtures, and mock implementations for testing.
 import pytest
 from fastapi.testclient import TestClient
 
-from librechat_tmux_bridge.api.routes_openai import get_driver, get_streamer
+from librechat_tmux_bridge.api.deps import get_driver, get_streamer
 from librechat_tmux_bridge.config import BridgeConfig
 from librechat_tmux_bridge.core.exceptions import (
     SessionAlreadyExistsError,

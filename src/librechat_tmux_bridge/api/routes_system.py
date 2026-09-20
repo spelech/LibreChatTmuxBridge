@@ -7,18 +7,15 @@ import time
 from fastapi import APIRouter, Depends
 
 from librechat_tmux_bridge import __version__
+from librechat_tmux_bridge.api.deps import get_driver
 from librechat_tmux_bridge.config import settings
 from librechat_tmux_bridge.core.models import HealthResponse
-from librechat_tmux_bridge.core.tmux_driver import ITmuxDriver, TmuxDriver
+from librechat_tmux_bridge.core.tmux_driver import ITmuxDriver
 from librechat_tmux_bridge.infrastructure.taps import diagnostic_tap
 
 router = APIRouter(tags=["System"])
 
 SERVER_START_TIME = time.time()
-
-
-def get_driver() -> ITmuxDriver:
-    return TmuxDriver(settings)
 
 
 @router.get("/health", response_model=HealthResponse)

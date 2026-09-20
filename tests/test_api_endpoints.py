@@ -11,7 +11,7 @@ def test_health_check(client: TestClient):
     data = response.json()
     assert data["status"] == "healthy"
     assert "version" in data
-    assert data["active_sessions"] >= 2
+    assert data["active_sessions"] == 2
 
 
 def test_system_status(client: TestClient):

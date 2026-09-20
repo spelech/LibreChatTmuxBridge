@@ -9,7 +9,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
-from librechat_tmux_bridge.config import settings
+from librechat_tmux_bridge.api.deps import get_driver, get_streamer
 from librechat_tmux_bridge.core.models import (
     ChatCompletionChoice,
     ChatCompletionRequest,
@@ -20,22 +20,12 @@ from librechat_tmux_bridge.core.models import (
     Usage,
 )
 from librechat_tmux_bridge.core.terminal_streamer import TerminalStreamer
-from librechat_tmux_bridge.core.tmux_driver import ITmuxDriver, TmuxDriver
+from librechat_tmux_bridge.core.tmux_driver import ITmuxDriver
 from librechat_tmux_bridge.infrastructure.taps import diagnostic_tap
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["OpenAI Compatibility"])
-
-
-def get_driver() -> ITmuxDriver:
-    """Dependency provider for TmuxDriver."""
-    return TmuxDriver(settings)
-
-
-def get_streamer(driver: ITmuxDriver = Depends(get_driver)) -> TerminalStreamer:
-    """Dependency provider for TerminalStreamer."""
-    return TerminalStreamer(driver, settings)
 
 
 def extract_session_name(model_id: str) -> str:
