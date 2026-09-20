@@ -5,7 +5,7 @@ export default withMermaid(
   defineConfig({
     title: 'LibreChatTmuxBridge',
     description: 'Universal Bidirectional Bridge between LibreChat and Host tmux Multiplexers',
-    base: '/librechat-tmux-bridge/',
+    base: process.env.VITEPRESS_BASE || '/LibreChatTmuxBridge/',
     ignoreDeadLinks: true,
     themeConfig: {
       nav: [

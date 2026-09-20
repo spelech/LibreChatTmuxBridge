@@ -5,6 +5,7 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,6 +63,10 @@ jobs:
   docs-build:
     name: Gate 2B - VitePress Documentation Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -76,6 +81,12 @@ jobs:
 
       - name: Build VitePress Documentation
         run: npm run docs:build
+
+      - name: Upload Pages Artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/.vitepress/dist
 
   # ==========================================
   # Gate 3: Fullstack Smoke Gate
@@ -136,3 +147,22 @@ jobs:
           kill $DAEMON_PID
           tmux kill-session -t ci-smoke
           echo "✅ Smoke test completed successfully."
+
+  # ==========================================
+  # Gate 4: GitHub Pages Automated Deployment
+  # ==========================================
+  deploy-pages:
+    name: Gate 4 - Deploy to GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    needs: [smoke, docs-build]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
